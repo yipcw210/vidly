@@ -65,7 +65,7 @@ router.put("/:id", [auth], async (req, res) => {
   res.send(movie);
 });
 
-router.put("/:id/response", auth, async (req, res) => {
+router.put("/:id/response", [auth], async (req, res) => {
   const { error } = validateResponse(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
@@ -78,6 +78,11 @@ router.put("/:id/response", auth, async (req, res) => {
       const index = movie.response.likeBy.indexOf(req.body.userId);
       movie.response.likeBy.splice(index, 1);
     } else {
+      if (movie.response.dislikeBy.includes(req.body.userId)) {
+        movie.response.dislikeCount--;
+        const index = movie.response.dislikeBy.indexOf(req.body.userId);
+        movie.response.dislikeBy.splice(index, 1);
+      }
       movie.response.likeCount++;
       movie.response.likeBy.push(req.body.userId);
     }
@@ -88,6 +93,11 @@ router.put("/:id/response", auth, async (req, res) => {
       const index = movie.response.dislikeBy.indexOf(req.body.userId);
       movie.response.dislikeBy.splice(index, 1);
     } else {
+      if (movie.response.likeBy.includes(req.body.userId)) {
+        movie.response.likeCount--;
+        const index = movie.response.likeBy.indexOf(req.body.userId);
+        movie.response.likeBy.splice(index, 1);
+      }
       movie.response.dislikeCount++;
       movie.response.dislikeBy.push(req.body.userId);
     }
