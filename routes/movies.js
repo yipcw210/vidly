@@ -1,8 +1,9 @@
-const { Movie, validate } = require("../models/movie");
+const { Movie, validate, validateResponse } = require("../models/movie");
 const { Genre } = require("../models/genre");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 const validateObjectId = require("../middleware/validateObjectId");
+
 const moment = require("moment");
 const mongoose = require("mongoose");
 const express = require("express");
@@ -60,6 +61,39 @@ router.put("/:id", [auth], async (req, res) => {
 
   if (!movie)
     return res.status(404).send("The movie with the given ID was not found.");
+
+  res.send(movie);
+});
+
+router.put("/:id/response", auth, async (req, res) => {
+  const { error } = validateResponse(req.body);
+  if (error) return res.status(400).send(error.details[0].message);
+
+  const movie = await Movie.findById(req.params.id);
+  if (!movie)
+    return res.status(404).send("The genre with the given ID was not found.");
+  if (req.body.like) {
+    if (movie.response.likeBy.includes(req.body.userId)) {
+      movie.response.likeCount--;
+      const index = movie.response.likeBy.indexOf(req.body.userId);
+      movie.response.likeBy.splice(index, 1);
+    } else {
+      movie.response.likeCount++;
+      movie.response.likeBy.push(req.body.userId);
+    }
+  }
+  if (!req.body.like) {
+    if (movie.response.dislikeBy.includes(req.body.userId)) {
+      movie.response.dislikeCount--;
+      const index = movie.response.dislikeBy.indexOf(req.body.userId);
+      movie.response.dislikeBy.splice(index, 1);
+    } else {
+      movie.response.dislikeCount++;
+      movie.response.dislikeBy.push(req.body.userId);
+    }
+  }
+
+  movie.save();
 
   res.send(movie);
 });
