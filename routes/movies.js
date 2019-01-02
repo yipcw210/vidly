@@ -9,6 +9,35 @@ const mongoose = require("mongoose");
 const express = require("express");
 const router = express.Router();
 
+const fs = require("fs");
+const multer = require("multer");
+const path = require("path");
+
+var storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, "/uploads");
+  },
+  filename: function(req, file, cb) {
+    cb(null, Date.now() + file.originalname);
+  }
+});
+
+let fileFilter = function(req, file, callback) {
+  var ext = path.extname(file.originalname).toLowerCase();
+  if (ext !== ".png" && ext !== ".jpg" && ext !== ".gif" && ext !== ".jpeg") {
+    return callback(null, false);
+  }
+  callback(null, true);
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter,
+  limits: {
+    fileSize: 1024 * 1024
+  }
+});
+
 router.get("/", async (req, res) => {
   const movies = await Movie.find()
     .select("-__v")
@@ -16,24 +45,24 @@ router.get("/", async (req, res) => {
   res.send(movies);
 });
 
-router.post("/", [auth], async (req, res) => {
+router.post("/", [auth, upload.single("movieImage")], async (req, res) => {
   const { error } = validate(req.body);
-  if (error) return res.status(400).send(error.details[0].message);
-
-  const genre = await Genre.findById(req.body.genreId);
-  if (!genre) return res.status(400).send("Invalid genre.");
-
-  const movie = new Movie({
+  if (error) {
+    fs.unlink(req.file.path);
+    return res.status(400).send(error.details[0].message);
+  }
+  if (!req.file) {
+    res.status(400).send("Only jpg, jpeg, png, gif files are allowed");
+  }
+  let movie = new Movie({
     title: req.body.title,
-    genre: {
-      _id: genre._id,
-      name: genre.name
-    },
+    genre: req.body.genre,
     numberInStock: req.body.numberInStock,
     dailyRentalRate: req.body.dailyRentalRate,
-    publishDate: moment().toJSON()
+    movieImage: req.file.path
   });
-  await movie.save();
+
+  movie = await movie.save();
 
   res.send(movie);
 });
